@@ -1,0 +1,17 @@
+{
+  "name": "rich-paste",
+  "version": "0.1.0",
+  "description": "Paste rich text (HTML) and convert to Markdown via terminal overlay",
+  "author": {
+    "name": "vkkovalev"
+  },
+  "license": "MIT",
+  "keywords": [
+    "clipboard",
+    "html",
+    "markdown",
+    "paste",
+    "rich-text"
+  ],
+  "skills": "./.claude-plugin/skills/"
+}
