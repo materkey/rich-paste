@@ -21,11 +21,23 @@ LOG_FILE=$(mktemp /tmp/rich-paste-log-XXXXXX)
 trap 'rm -f "$OUTPUT_FILE" "$LOG_FILE"' EXIT
 
 EXTRA_ARGS=""
+NO_PREVIEW=0
 for arg in "$@"; do
     case "$arg" in
-        --manual|-m) EXTRA_ARGS="--manual" ;;
+        --manual|-m) EXTRA_ARGS="$EXTRA_ARGS --manual" ;;
+        --no-preview) NO_PREVIEW=1 ;;
     esac
 done
+
+# If --no-preview passed, skip overlay entirely
+if [ "$NO_PREVIEW" -eq 1 ]; then
+    $UV_BIN run "$RICH_PASTE_PY" --output "$OUTPUT_FILE" --no-preview $EXTRA_ARGS 2>"$LOG_FILE"
+    if [ ! -s "$OUTPUT_FILE" ] && [ -s "$LOG_FILE" ]; then
+        cat "$LOG_FILE" >&2
+    fi
+    cat "$OUTPUT_FILE"
+    exit 0
+fi
 
 # Build command with proper quoting — all paths are absolute
 CMD="$UV_BIN run $RICH_PASTE_PY --output $OUTPUT_FILE $EXTRA_ARGS 2>$LOG_FILE"

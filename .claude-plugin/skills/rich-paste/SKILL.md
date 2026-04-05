@@ -5,7 +5,7 @@ description: >
   Reads text/html from system clipboard, converts to Markdown, shows preview in overlay,
   and returns the result to the session. Activates on "rich-paste", "rp", "paste rich",
   "paste html", "paste as markdown", "вставить как markdown", "rich paste".
-argument-hint: 'optional: --manual (paste raw HTML instead of reading clipboard)'
+argument-hint: 'optional: --manual (paste raw HTML), --no-preview (skip interactive preview)'
 allowed-tools: [Bash]
 disable-model-invocation: true
 ---
@@ -42,6 +42,12 @@ If `$ARGUMENTS` contains `--manual` or `manual`, pass `--manual` flag:
 
 ```bash
 "$SCRIPTS/launch-overlay.sh" --manual
+```
+
+If `$ARGUMENTS` contains `--no-preview`, pass `--no-preview` flag (skips overlay, auto-accepts):
+
+```bash
+"$SCRIPTS/launch-overlay.sh" --no-preview
 ```
 
 ### Step 2: Read Output
