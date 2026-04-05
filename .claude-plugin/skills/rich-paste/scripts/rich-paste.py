@@ -174,8 +174,8 @@ def read_single_key() -> str:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
-def show_preview(markdown: str) -> bool:
-    """Show Markdown preview, return True if accepted."""
+def render_preview(markdown: str):
+    """Render the preview screen."""
     # Clear screen
     print("\033[2J\033[H", end="")
 
@@ -191,15 +191,8 @@ def show_preview(markdown: str) -> bool:
 
     print()
     print("\033[2m-------------------------------------------------------\033[0m")
-    print("\033[1;32m Enter\033[0m accept  \033[1;31m q/Esc\033[0m cancel")
+    print("\033[1;32m Enter\033[0m accept  \033[1;33m r\033[0m re-read clipboard  \033[1;31m q/Esc\033[0m cancel")
     print()
-
-    while True:
-        key = read_single_key()
-        if key in ("\r", "\n"):
-            return True
-        if key in ("q", "Q", "ESC", "\x1b", "\x03"):
-            return False
 
 
 def main():
@@ -225,7 +218,7 @@ def main():
             if len(plain) > 500:
                 print(f"\n\033[2m... ({len(plain)} chars total)\033[0m")
             print(f"\n\033[2m-------------------------------------------------------\033[0m")
-            print("\033[1;32m Enter\033[0m use as-is  \033[1;31m q/Esc\033[0m cancel")
+            print("\033[1;32m Enter\033[0m use as-is  \033[1;33m r\033[0m re-read clipboard  \033[1;31m q/Esc\033[0m cancel")
 
             while True:
                 key = read_single_key()
@@ -233,20 +226,70 @@ def main():
                     with open(args.output, "w") as f:
                         f.write(plain)
                     return
+                if key in ("r", "R"):
+                    html = read_clipboard_html()
+                    if html:
+                        break  # fall through to the preview loop below
+                    # Still no HTML — re-read plain and refresh
+                    plain = read_clipboard_plain()
+                    print("\033[2J\033[H", end="")
+                    print("\033[1;33mNo HTML found in clipboard.\033[0m")
+                    print("\033[2mClipboard contains plain text only:\033[0m\n")
+                    print(plain[:500] if plain else "(empty)")
+                    if plain and len(plain) > 500:
+                        print(f"\n\033[2m... ({len(plain)} chars total)\033[0m")
+                    print(f"\n\033[2m-------------------------------------------------------\033[0m")
+                    print("\033[1;32m Enter\033[0m use as-is  \033[1;33m r\033[0m re-read clipboard  \033[1;31m q/Esc\033[0m cancel")
+                    continue
                 if key in ("q", "Q", "ESC", "\x1b", "\x03"):
                     return
+            # If we broke out, html is now set — fall through
         else:
-            print("\033[1;31mClipboard is empty.\033[0m", file=sys.stderr)
-            read_single_key()
-            return
+            print("\033[2J\033[H", end="")
+            print("\033[1;31mClipboard is empty.\033[0m")
+            print("\033[1;33m r\033[0m re-read clipboard  \033[1;31m q/Esc\033[0m cancel")
+            while True:
+                key = read_single_key()
+                if key in ("r", "R"):
+                    html = read_clipboard_html()
+                    if html:
+                        break
+                    plain = read_clipboard_plain()
+                    if plain:
+                        print("\033[2J\033[H", end="")
+                        print("\033[1;33mNo HTML found. Plain text:\033[0m\n")
+                        print(plain[:500])
+                        continue
+                    print("\033[2J\033[H", end="")
+                    print("\033[1;31mClipboard is still empty.\033[0m")
+                    print("\033[1;33m r\033[0m re-read clipboard  \033[1;31m q/Esc\033[0m cancel")
+                    continue
+                if key in ("q", "Q", "ESC", "\x1b", "\x03"):
+                    return
+            # html is set if we broke out
 
-    # Convert
+    # Convert and preview loop
     markdown = convert_html_to_markdown(html)
+    render_preview(markdown)
 
-    # Preview and confirm
-    if show_preview(markdown):
-        with open(args.output, "w") as f:
-            f.write(markdown)
+    while True:
+        key = read_single_key()
+        if key in ("\r", "\n"):
+            with open(args.output, "w") as f:
+                f.write(markdown)
+            return
+        if key in ("r", "R"):
+            html = read_clipboard_html()
+            if not html:
+                # No HTML — show a flash message and re-render current preview
+                render_preview(markdown)
+                print("\033[1;33m  (no HTML in clipboard, showing previous)\033[0m")
+                continue
+            markdown = convert_html_to_markdown(html)
+            render_preview(markdown)
+            continue
+        if key in ("q", "Q", "ESC", "\x1b", "\x03"):
+            return
 
 
 if __name__ == "__main__":
