@@ -7,6 +7,7 @@ description: >
   "paste html", "paste as markdown", "вставить как markdown", "rich paste".
 argument-hint: 'optional: --manual (paste raw HTML instead of reading clipboard)'
 allowed-tools: [Bash]
+disable-model-invocation: true
 ---
 
 # /rich-paste (/rp) - Rich Text to Markdown
