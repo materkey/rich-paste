@@ -199,6 +199,7 @@ def main():
     parser = argparse.ArgumentParser(description="rich-paste: HTML clipboard to Markdown")
     parser.add_argument("--output", "-o", required=True, help="Output file path")
     parser.add_argument("--manual", "-m", action="store_true", help="Manual HTML input via stdin")
+    parser.add_argument("--no-preview", action="store_true", help="Skip interactive preview, auto-accept")
     args = parser.parse_args()
 
     # Read HTML
@@ -206,6 +207,19 @@ def main():
         html = read_manual_html()
     else:
         html = read_clipboard_html()
+
+    # No-preview mode: convert and write immediately
+    if args.no_preview:
+        if not html:
+            plain = read_clipboard_plain()
+            if plain:
+                with open(args.output, "w") as f:
+                    f.write(plain)
+            return
+        markdown = convert_html_to_markdown(html)
+        with open(args.output, "w") as f:
+            f.write(markdown)
+        return
 
     if not html:
         # Fallback message

@@ -1,6 +1,6 @@
 {
   "name": "rich-paste",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Paste rich text (HTML) and convert to Markdown via terminal overlay",
   "author": {
     "name": "vkkovalev"

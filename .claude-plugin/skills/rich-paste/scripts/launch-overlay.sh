@@ -89,5 +89,10 @@ if [ -n "${WEZTERM_PANE:-}" ] && command -v wezterm >/dev/null 2>&1; then
     exit 0
 fi
 
-echo "error: no overlay terminal available (requires tmux, kitty, or wezterm)" >&2
-exit 1
+# fallback: run directly without overlay (no interactive preview, auto-accept)
+$UV_BIN run "$RICH_PASTE_PY" --output "$OUTPUT_FILE" --no-preview $EXTRA_ARGS 2>"$LOG_FILE"
+if [ ! -s "$OUTPUT_FILE" ] && [ -s "$LOG_FILE" ]; then
+    cat "$LOG_FILE" >&2
+fi
+cat "$OUTPUT_FILE"
+exit 0
