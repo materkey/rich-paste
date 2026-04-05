@@ -48,30 +48,33 @@ return htmlString as text
 
 def _read_clipboard_html_linux() -> str:
     """Read HTML from Linux clipboard using xclip or xsel."""
-    # Try xclip first (supports target selection)
-    if shutil.which("xclip"):
+    has_display = bool(os.environ.get("DISPLAY"))
+    has_wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
+
+    # Try xclip first (supports target selection, needs X11)
+    if has_display and shutil.which("xclip"):
         result = subprocess.run(
             ["xclip", "-selection", "clipboard", "-t", "text/html", "-o"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, timeout=5,
         )
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
 
-    # Try xsel (only supports plain text, but worth trying)
-    if shutil.which("xsel"):
+    # Try xsel (needs X11)
+    if has_display and shutil.which("xsel"):
         result = subprocess.run(
             ["xsel", "--clipboard", "--output"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, timeout=5,
         )
         html = result.stdout.strip()
         if result.returncode == 0 and html.startswith("<"):
             return html
 
-    # Try wl-paste for Wayland
-    if shutil.which("wl-paste"):
+    # Try wl-paste for Wayland (needs WAYLAND_DISPLAY)
+    if has_wayland and shutil.which("wl-paste"):
         result = subprocess.run(
             ["wl-paste", "--type", "text/html"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, timeout=5,
         )
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
@@ -80,10 +83,18 @@ def _read_clipboard_html_linux() -> str:
 
 
 def clipboard_available() -> bool:
-    """Check if any clipboard tool is available."""
+    """Check if any clipboard tool is available and can actually work."""
     if platform.system() == "Darwin":
         return shutil.which("osascript") is not None
-    return any(shutil.which(cmd) for cmd in ("xclip", "xsel", "wl-paste"))
+    # X11 tools need DISPLAY
+    if os.environ.get("DISPLAY") and shutil.which("xclip"):
+        return True
+    if os.environ.get("DISPLAY") and shutil.which("xsel"):
+        return True
+    # Wayland tools need WAYLAND_DISPLAY
+    if os.environ.get("WAYLAND_DISPLAY") and shutil.which("wl-paste"):
+        return True
+    return False
 
 
 def read_clipboard_html() -> str:
@@ -102,21 +113,24 @@ def _read_clipboard_plain_macos() -> str:
 
 
 def _read_clipboard_plain_linux() -> str:
-    if shutil.which("xclip"):
+    has_display = bool(os.environ.get("DISPLAY"))
+    has_wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
+
+    if has_display and shutil.which("xclip"):
         result = subprocess.run(
             ["xclip", "-selection", "clipboard", "-o"],
             capture_output=True, text=True, timeout=5,
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    if shutil.which("xsel"):
+    if has_display and shutil.which("xsel"):
         result = subprocess.run(
             ["xsel", "--clipboard", "--output"],
             capture_output=True, text=True, timeout=5,
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    if shutil.which("wl-paste"):
+    if has_wayland and shutil.which("wl-paste"):
         result = subprocess.run(
             ["wl-paste"], capture_output=True, text=True, timeout=5,
         )
