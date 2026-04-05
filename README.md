@@ -43,11 +43,31 @@ ln -s ~/.claude/skills/rich-paste-repo/.claude-plugin/skills/rich-paste ~/.claud
 
 ## Usage
 
+### Claude Code skill
+
 ```
-/rp              # read HTML from clipboard
-/rich-paste      # same thing
-/rp --manual     # paste raw HTML manually (stdin)
+/rich-paste              # overlay: preview + confirm
+/rich-paste --no-preview # instant conversion, no overlay
+/rich-paste --manual     # paste raw HTML via stdin
 ```
+
+### Standalone CLI
+
+```bash
+rich-copy   # convert clipboard HTML→Markdown in-place (macOS)
+```
+
+After running `rich-copy`, your clipboard contains Markdown. Regular Cmd+V will paste text with `[links](url)` preserved. Useful before pasting into SSH sessions, Slack, etc.
+
+### Kitty hotkey (Cmd+Shift+V)
+
+Add to `kitty.conf`:
+
+```
+map cmd+shift+v launch --type=background sh -c "/path/to/rich-paste-and-type.sh"
+```
+
+Converts clipboard HTML→Markdown and pastes in one keystroke — works everywhere including SSH sessions.
 
 ## Why
 
