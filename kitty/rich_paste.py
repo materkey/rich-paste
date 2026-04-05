@@ -18,6 +18,10 @@ from kittens.tui.handler import result_handler
 
 
 def _find_rich_copy():
+    # Prefer PATH-installed binary
+    on_path = shutil.which("rich-copy")
+    if on_path:
+        return on_path
     candidates = [
         os.path.expanduser("~/.local/bin/rich-copy"),
         os.path.expanduser("~/.claude/plugins/marketplaces/rich-paste/"
@@ -25,13 +29,6 @@ def _find_rich_copy():
         os.path.expanduser("~/projects/rich-paste/.claude-plugin/"
                            "skills/rich-paste/scripts/rich-copy.py"),
     ]
-    # Also check relative to this file if __file__ is available
-    try:
-        candidates.insert(0, os.path.join(
-            os.path.dirname(__file__), "..", ".claude-plugin",
-            "skills", "rich-paste", "scripts", "rich-copy.py"))
-    except NameError:
-        pass
     for path in candidates:
         resolved = os.path.realpath(path)
         if os.path.isfile(resolved):
@@ -49,6 +46,7 @@ def handle_result(args, data, target_window_id, boss):
     uv = shutil.which("uv", path=env["PATH"])
     script = _find_rich_copy()
     if not uv or not script:
+        boss.show_error("rich-paste", f"Cannot find uv ({uv}) or rich-copy script ({script})")
         return
 
     try:
