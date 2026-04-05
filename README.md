@@ -12,13 +12,21 @@ Claude Code skill that reads rich text (HTML) from your clipboard, converts it t
 
 ## Installation
 
-### Via Claude Code skills (recommended)
+### Via `/install-plugin` slash command (recommended)
+
+Inside Claude Code session:
+
+```
+/install-plugin materkey/rich-paste
+```
+
+### Via CLI
 
 ```bash
 claude skills add materkey/rich-paste
 ```
 
-### Via Claude Code plugin
+### Via Claude Code plugin registry
 
 ```bash
 claude plugin install rich-paste@materkey-rich-paste
@@ -49,13 +57,39 @@ ln -s ~/.claude/skills/rich-paste-repo/.claude-plugin/skills/rich-paste ~/.claud
 
 When you copy text from ChatGPT, a browser, or Google Docs and paste it into Claude Code, you get plain text — all links are lost. The text says "check the docs" but the URL that was behind it is gone.
 
-With `/rp`, the hidden HTML from your clipboard is preserved. A response like:
+With `/rp`, the hidden HTML from your clipboard is preserved — links, formatting, structure all come through as proper Markdown.
 
-> Read the [migration guide](https://docs.example.com/migrate) and update your [config](https://docs.example.com/config)
+## Before / After
 
-stays exactly like that — with clickable Markdown links — instead of becoming just "Read the migration guide and update your config".
+Suppose you copy this ChatGPT response and paste it into Claude Code:
 
-Same for bold, headers, code blocks, and lists — everything that was formatted in the source comes through as proper Markdown.
+### Before (regular Ctrl+V)
+
+```
+Use the migration guide and update your config file.
+See the API reference for details on authentication.
+
+Key changes:
+- Updated OAuth flow
+- New rate limits
+- Deprecated endpoints removed
+```
+
+All links, bold text, and structure — gone. Just flat text.
+
+### After (`/rp`)
+
+```markdown
+Use the [migration guide](https://docs.example.com/v2/migrate) and update your **config** file.
+See the [API reference](https://docs.example.com/v2/api) for details on **authentication**.
+
+**Key changes:**
+- Updated [OAuth flow](https://docs.example.com/v2/oauth)
+- New rate limits
+- Deprecated endpoints removed
+```
+
+Links are preserved as `[text](url)`, bold stays as `**bold**`, lists keep their structure.
 
 ## How it works
 
