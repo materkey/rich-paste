@@ -9,7 +9,7 @@
       "name": "rich-paste",
       "source": "./",
       "description": "Read HTML from clipboard, convert to Markdown, preview in overlay, return to session",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "materkey"
       }

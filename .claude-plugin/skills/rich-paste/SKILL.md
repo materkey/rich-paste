@@ -25,16 +25,23 @@ Read HTML from clipboard, convert to Markdown, preview in overlay, return to ses
 
 ## Workflow
 
-### Step 1: Launch Overlay
+### Step 1: Resolve scripts path and launch overlay
+
+First, determine the scripts directory. Use this exact bash snippet:
 
 ```bash
-~/.claude/skills/rich-paste/scripts/launch-overlay.sh
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  SCRIPTS="${CLAUDE_PLUGIN_ROOT}/.claude-plugin/skills/rich-paste/scripts"
+else
+  SCRIPTS="$(cd "$(dirname "$(readlink -f ~/.claude/skills/rich-paste/SKILL.md)")" && pwd)/scripts"
+fi
+"$SCRIPTS/launch-overlay.sh"
 ```
 
 If `$ARGUMENTS` contains `--manual` or `manual`, pass `--manual` flag:
 
 ```bash
-~/.claude/skills/rich-paste/scripts/launch-overlay.sh --manual
+"$SCRIPTS/launch-overlay.sh" --manual
 ```
 
 ### Step 2: Read Output
