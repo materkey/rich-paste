@@ -16,18 +16,26 @@ def main(args):
 
 from kittens.tui.handler import result_handler
 
+_HTML_MIMES = ('public.html', 'text/html')
 
-def _find_rich_copy():
-    # Prefer PATH-installed binary
-    on_path = shutil.which("rich-copy")
-    if on_path:
-        return on_path
+
+def _build_env():
+    env = os.environ.copy()
+    env["PATH"] = os.pathsep.join([
+        os.path.expanduser("~/.local/bin"),
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        env.get("PATH", ""),
+    ])
+    return env
+
+
+def _find_rich_paste_script():
     candidates = [
-        os.path.expanduser("~/.local/bin/rich-copy"),
         os.path.expanduser("~/.claude/plugins/marketplaces/rich-paste/"
-                           ".claude-plugin/skills/rich-paste/scripts/rich-copy.py"),
+                           ".claude-plugin/skills/rich-paste/scripts/rich-paste.py"),
         os.path.expanduser("~/projects/rich-paste/.claude-plugin/"
-                           "skills/rich-paste/scripts/rich-copy.py"),
+                           "skills/rich-paste/scripts/rich-paste.py"),
     ]
     for path in candidates:
         resolved = os.path.realpath(path)
@@ -36,37 +44,54 @@ def _find_rich_copy():
     return None
 
 
-@result_handler(no_ui=True)
-def handle_result(args, data, target_window_id, boss):
-    env = os.environ.copy()
-    env["PATH"] = os.path.expanduser("~/.local/bin") + ":" + \
-                  os.path.expanduser("~/.cargo/bin") + ":" + \
-                  "/opt/homebrew/bin:/usr/local/bin:" + env.get("PATH", "")
+def _read_html(clipboard):
+    """Read HTML from clipboard via kitty's native MIME API."""
+    try:
+        available = clipboard.get_available_mime_types_for_paste()
+        for mime in _HTML_MIMES:
+            if mime in available:
+                data = clipboard.get_mime_data(mime)
+                if data:
+                    return data.decode('utf-8', 'replace')
+    except Exception:
+        pass
+    return ''
 
+
+def _convert_html_to_markdown(html, env):
+    """Convert HTML to Markdown via uv + rich-paste.py."""
     uv = shutil.which("uv", path=env["PATH"])
-    script = _find_rich_copy()
+    script = _find_rich_paste_script()
     if not uv or not script:
-        boss.show_error("rich-paste", f"Cannot find uv ({uv}) or rich-copy script ({script})")
-        return
+        return ''
 
     try:
         r = subprocess.run(
-            [uv, "run", script],
-            capture_output=True, text=True, timeout=15, env=env,
+            [uv, "run", script, "--manual", "--no-preview", "--output", "/dev/stdout"],
+            input=html, capture_output=True, text=True, timeout=15, env=env,
         )
-        # rich-copy.py converts HTML→Markdown and also writes to clipboard via pbcopy.
-        # If it failed (no HTML), clipboard is unchanged — paste as-is.
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+        if r.returncode == 0:
+            return r.stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         pass
+    return ''
 
-    # Paste from clipboard (either converted Markdown or original text)
-    try:
-        r = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=5)
-        text = r.stdout if r.returncode == 0 else ""
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        text = ""
 
+@result_handler(no_ui=True)
+def handle_result(args, data, target_window_id, boss):
+    w = boss.window_id_map.get(target_window_id)
+    if w is None:
+        return
+
+    env = _build_env()
+
+    html = _read_html(boss.clipboard)
+    if html:
+        md = _convert_html_to_markdown(html, env)
+        if md:
+            w.paste_text(md)
+            return
+
+    text = boss.clipboard.get_text()
     if text:
-        w = boss.window_id_map.get(target_window_id)
-        if w is not None:
-            w.paste_text(text)
+        w.paste_text(text)

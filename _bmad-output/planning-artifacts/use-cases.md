@@ -175,7 +175,7 @@ sequenceDiagram
 **Preconditions:**
 - `rich_paste.py` kitten installed in `~/.config/kitty/`
 - `map cmd+shift+v kitten rich_paste.py` in `kitty.conf`
-- `uv` and `rich-copy.py` accessible
+- `uv` and `rich-paste.py` script accessible
 
 **Flow:**
 
@@ -183,13 +183,13 @@ sequenceDiagram
 |------|--------|
 | 1 | User copies from browser |
 | 2 | User presses **Cmd+Shift+V** in kitty |
-| 3 | Kitten runs `rich-copy` (HTML → Markdown → clipboard) |
-| 4 | Kitten reads Markdown from clipboard via `pbpaste` |
-| 5 | Markdown is pasted into the active kitty window |
+| 3 | Kitten reads HTML from clipboard via kitty's native MIME API (`boss.clipboard`) |
+| 4 | HTML is piped to `rich-paste.py --manual --no-preview` for Markdown conversion |
+| 5 | Markdown is pasted into the active kitty window via `w.paste_text()` |
 
-**Key property:** Works in SSH sessions — conversion happens locally on the Mac before text reaches the remote terminal.
+**Key property:** Works in SSH sessions — conversion happens locally on the Mac before text reaches the remote terminal. No clipboard round-trip — HTML is read natively and Markdown is pasted directly.
 
-**Fallback:** If `rich-copy` fails (no HTML), kitten pastes original plain text from clipboard — same as regular Cmd+V.
+**Fallback:** If no HTML in clipboard, kitten reads plain text via `boss.clipboard.get_text()` and pastes as-is.
 
 ---
 
