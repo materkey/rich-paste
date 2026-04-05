@@ -55,10 +55,10 @@ This skill CANNOT work over SSH without clipboard forwarding. Rich text (text/ht
 
 Tell the user:
 
-"rich-paste не может работать в SSH-сессии — доступ к HTML-формату буфера обмена невозможен без clipboard forwarding. Варианты:
-1. Запустите `/rich-paste` на локальной машине (macOS) и скопируйте результат сюда
-2. Подключайтесь через `kitten ssh` вместо `ssh` — тогда clipboard будет проброшен
-3. Просто вставьте текст как есть (Cmd+V) — ссылки будут потеряны, но текст будет"
+"rich-paste cannot work in an SSH session — access to the HTML clipboard format is not possible without clipboard forwarding. Options:
+1. Run `/rich-paste` on your local machine (macOS) and copy the result here
+2. Connect via `kitten ssh` instead of `ssh` — this forwards the clipboard
+3. Just paste the text as-is (Cmd+V) — links will be lost, but text will be there"
 
 Do NOT ask the user to "paste HTML" — they cannot paste HTML in a terminal. Do NOT offer manual mode as a workaround for SSH — it requires actual HTML source code which users don't have.
 
