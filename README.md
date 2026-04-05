@@ -12,24 +12,20 @@ Claude Code skill that reads rich text (HTML) from your clipboard, converts it t
 
 ## Installation
 
-### Via `/install-plugin` slash command (recommended)
+### Via `/plugin` slash commands
 
 Inside Claude Code session:
 
 ```
-/install-plugin materkey/rich-paste
+/plugin marketplace add https://github.com/materkey/rich-paste.git
+/plugin install rich-paste@rich-paste
 ```
 
 ### Via CLI
 
 ```bash
-claude skills add materkey/rich-paste
-```
-
-### Via Claude Code plugin registry
-
-```bash
-claude plugin install rich-paste@materkey-rich-paste
+claude plugin marketplace add https://github.com/materkey/rich-paste.git
+claude plugin install rich-paste@rich-paste
 ```
 
 ### Manual
