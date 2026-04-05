@@ -61,13 +61,16 @@ After running `rich-copy`, your clipboard contains Markdown. Regular Cmd+V will 
 
 ### Kitty hotkey (Cmd+Shift+V)
 
-Add to `kitty.conf`:
+Copy the kitten and add mapping to `kitty.conf`:
 
-```
-map cmd+shift+v launch --type=background sh -c "/path/to/rich-paste-and-type.sh"
+```bash
+cp kitty/rich_paste.py ~/.config/kitty/rich_paste.py
+echo 'map cmd+shift+v kitten rich_paste.py' >> ~/.config/kitty/kitty.conf
 ```
 
-Converts clipboard HTML→Markdown and pastes in one keystroke — works everywhere including SSH sessions.
+Then reload kitty config (Cmd+Ctrl+,).
+
+**Cmd+Shift+V** converts clipboard HTML→Markdown and pastes in one keystroke. Works everywhere including SSH sessions — the conversion happens on your local Mac before the text reaches the terminal.
 
 ## Why
 
