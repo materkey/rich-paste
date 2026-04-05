@@ -1,0 +1,14 @@
+{
+  "name": "rich-paste",
+  "description": "Paste rich text (HTML) from clipboard, convert to Markdown via terminal overlay",
+  "owner": {
+    "name": "materkey"
+  },
+  "plugins": [
+    {
+      "name": "rich-paste",
+      "description": "Read HTML from clipboard, convert to Markdown, preview in overlay, return to session",
+      "path": "."
+    }
+  ]
+}
