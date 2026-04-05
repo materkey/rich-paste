@@ -45,6 +45,18 @@ ln -s ~/.claude/skills/rich-paste-repo/.claude-plugin/skills/rich-paste ~/.claud
 /rp --manual     # paste raw HTML manually (stdin)
 ```
 
+## Why
+
+When you copy text from ChatGPT, a browser, or Google Docs and paste it into Claude Code, you get plain text — all links are lost. The text says "check the docs" but the URL that was behind it is gone.
+
+With `/rp`, the hidden HTML from your clipboard is preserved. A response like:
+
+> Read the [migration guide](https://docs.example.com/migrate) and update your [config](https://docs.example.com/config)
+
+stays exactly like that — with clickable Markdown links — instead of becoming just "Read the migration guide and update your config".
+
+Same for bold, headers, code blocks, and lists — everything that was formatted in the source comes through as proper Markdown.
+
 ## How it works
 
 When you copy text from a web page, the clipboard contains two formats: `text/plain` and `text/html`. Regular paste gives you plain text only. This skill reads the hidden `text/html` format via macOS `NSPasteboard` API, converts it to Markdown using [markdownify](https://github.com/matthewwithanm/python-markdownify), and feeds the result back to Claude.
