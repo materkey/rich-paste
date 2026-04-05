@@ -79,8 +79,17 @@ def _read_clipboard_html_linux() -> str:
     return ""
 
 
+def clipboard_available() -> bool:
+    """Check if any clipboard tool is available."""
+    if platform.system() == "Darwin":
+        return shutil.which("osascript") is not None
+    return any(shutil.which(cmd) for cmd in ("xclip", "xsel", "wl-paste"))
+
+
 def read_clipboard_html() -> str:
     """Read HTML from system clipboard (macOS or Linux)."""
+    if not clipboard_available():
+        return ""
     if platform.system() == "Darwin":
         return _read_clipboard_html_macos()
     else:
@@ -205,6 +214,10 @@ def main():
     # Read HTML
     if args.manual:
         html = read_manual_html()
+    elif not clipboard_available():
+        print("error: no clipboard tool available (need osascript on macOS, or xclip/xsel/wl-paste on Linux)", file=sys.stderr)
+        print("hint: use /rich-paste --manual to paste HTML from stdin", file=sys.stderr)
+        sys.exit(1)
     else:
         html = read_clipboard_html()
 
