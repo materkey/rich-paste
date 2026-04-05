@@ -65,12 +65,20 @@ Copy the kitten and add mapping to `kitty.conf`:
 
 ```bash
 cp kitty/rich_paste.py ~/.config/kitty/rich_paste.py
-echo 'map cmd+shift+v kitten rich_paste.py' >> ~/.config/kitty/kitty.conf
+```
+
+Add to `kitty.conf`:
+
+```
+map cmd+shift+v kitten rich_paste.py
+map cmd+shift+м kitten rich_paste.py
 ```
 
 Then reload kitty config (Cmd+Ctrl+,).
 
 **Cmd+Shift+V** converts clipboard HTML→Markdown and pastes in one keystroke. Works everywhere including SSH sessions — the conversion happens on your local Mac before the text reaches the terminal.
+
+The second mapping (`cmd+shift+м`) makes the hotkey work on Russian keyboard layout — kitty resolves key identity from the current layout, so a separate mapping is needed for Cyrillic.
 
 ## Why
 

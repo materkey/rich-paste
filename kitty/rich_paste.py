@@ -3,7 +3,9 @@ Kitty kitten: convert clipboard HTML to Markdown, paste into terminal.
 Cmd+Shift+V = rich paste (preserves links, bold, lists from copied web content).
 
 Install: cp rich_paste.py ~/.config/kitty/
-         echo 'map cmd+shift+v kitten rich_paste.py' >> ~/.config/kitty/kitty.conf
+         Add to kitty.conf:
+           map cmd+shift+v kitten rich_paste.py
+           map cmd+shift+м kitten rich_paste.py
 """
 import os
 import shutil
