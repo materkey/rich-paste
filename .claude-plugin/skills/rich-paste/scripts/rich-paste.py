@@ -96,8 +96,8 @@ def clipboard_available() -> bool:
     """Check if any clipboard tool is available and can actually work."""
     if platform.system() == "Darwin":
         return shutil.which("osascript") is not None
-    # kitten clipboard works over kitten ssh (needs /dev/tty)
-    if shutil.which("kitten") and _has_tty():
+    # kitten clipboard works over kitten ssh (needs /dev/tty for escape sequences)
+    if shutil.which("kitten") and (_has_tty() or os.environ.get("KITTY_WINDOW_ID")):
         return True
     # X11 tools need DISPLAY
     if os.environ.get("DISPLAY") and shutil.which("xclip"):
@@ -112,27 +112,33 @@ def clipboard_available() -> bool:
 
 def _read_clipboard_kitten() -> str:
     """Read HTML from clipboard via kitten clipboard (works over kitten ssh)."""
-    if not (shutil.which("kitten") and _has_tty()):
+    if not shutil.which("kitten"):
         return ""
-    result = subprocess.run(
-        ["kitten", "clipboard", "--get-clipboard", "--mime", "text/html"],
-        capture_output=True, text=True, timeout=5,
-    )
-    if result.returncode == 0 and result.stdout.strip():
-        return result.stdout.strip()
+    try:
+        result = subprocess.run(
+            ["kitten", "clipboard", "--get-clipboard", "--mime", "text/html"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except subprocess.TimeoutExpired:
+        pass
     return ""
 
 
 def _read_clipboard_kitten_plain() -> str:
     """Read plain text from clipboard via kitten clipboard."""
-    if not (shutil.which("kitten") and _has_tty()):
+    if not shutil.which("kitten"):
         return ""
-    result = subprocess.run(
-        ["kitten", "clipboard", "--get-clipboard"],
-        capture_output=True, text=True, timeout=5,
-    )
-    if result.returncode == 0 and result.stdout.strip():
-        return result.stdout.strip()
+    try:
+        result = subprocess.run(
+            ["kitten", "clipboard", "--get-clipboard"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except subprocess.TimeoutExpired:
+        pass
     return ""
 
 
