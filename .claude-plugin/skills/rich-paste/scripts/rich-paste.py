@@ -82,10 +82,23 @@ def _read_clipboard_html_linux() -> str:
     return ""
 
 
+def _has_tty() -> bool:
+    """Check if /dev/tty is accessible (needed for kitten clipboard)."""
+    try:
+        fd = os.open("/dev/tty", os.O_RDWR)
+        os.close(fd)
+        return True
+    except OSError:
+        return False
+
+
 def clipboard_available() -> bool:
     """Check if any clipboard tool is available and can actually work."""
     if platform.system() == "Darwin":
         return shutil.which("osascript") is not None
+    # kitten clipboard works over kitten ssh (needs /dev/tty)
+    if shutil.which("kitten") and _has_tty():
+        return True
     # X11 tools need DISPLAY
     if os.environ.get("DISPLAY") and shutil.which("xclip"):
         return True
@@ -97,14 +110,43 @@ def clipboard_available() -> bool:
     return False
 
 
+def _read_clipboard_kitten() -> str:
+    """Read HTML from clipboard via kitten clipboard (works over kitten ssh)."""
+    if not (shutil.which("kitten") and _has_tty()):
+        return ""
+    result = subprocess.run(
+        ["kitten", "clipboard", "--get-clipboard", "--mime", "text/html"],
+        capture_output=True, text=True, timeout=5,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    return ""
+
+
+def _read_clipboard_kitten_plain() -> str:
+    """Read plain text from clipboard via kitten clipboard."""
+    if not (shutil.which("kitten") and _has_tty()):
+        return ""
+    result = subprocess.run(
+        ["kitten", "clipboard", "--get-clipboard"],
+        capture_output=True, text=True, timeout=5,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    return ""
+
+
 def read_clipboard_html() -> str:
-    """Read HTML from system clipboard (macOS or Linux)."""
+    """Read HTML from system clipboard (macOS, Linux, or kitten ssh)."""
     if not clipboard_available():
         return ""
     if platform.system() == "Darwin":
         return _read_clipboard_html_macos()
-    else:
-        return _read_clipboard_html_linux()
+    # Try kitten first (works over SSH with kitten ssh)
+    html = _read_clipboard_kitten()
+    if html:
+        return html
+    return _read_clipboard_html_linux()
 
 
 def _read_clipboard_plain_macos() -> str:
@@ -143,8 +185,11 @@ def read_clipboard_plain() -> str:
     """Fallback: read plain text from clipboard."""
     if platform.system() == "Darwin":
         return _read_clipboard_plain_macos()
-    else:
-        return _read_clipboard_plain_linux()
+    # Try kitten first
+    plain = _read_clipboard_kitten_plain()
+    if plain:
+        return plain
+    return _read_clipboard_plain_linux()
 
 
 def read_manual_html() -> str:
