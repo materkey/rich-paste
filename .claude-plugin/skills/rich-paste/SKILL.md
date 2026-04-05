@@ -6,7 +6,7 @@ description: >
   and returns the result to the session. Activates on "rich-paste", "rp", "paste rich",
   "paste html", "paste as markdown", "rich paste".
 argument-hint: 'optional: --manual (paste raw HTML), --no-preview (skip interactive preview)'
-allowed-tools: [Bash, AskUserQuestion]
+allowed-tools: [Bash]
 disable-model-invocation: true
 ---
 
@@ -51,16 +51,16 @@ Pass `--no-preview` if `$ARGUMENTS` contains `--no-preview`.
 
 **Step 2b — no clipboard (SSH / headless):**
 
-Ask the user to paste HTML content directly using AskUserQuestion:
-"Clipboard недоступен (SSH-сессия). Вставьте скопированный HTML-контент сюда (Cmd+V), и я конвертирую его в Markdown."
+This skill CANNOT work over SSH without clipboard forwarding. Rich text (text/html) is only accessible through system clipboard APIs — regular terminal paste (Cmd+V) only gives plain text, which defeats the purpose.
 
-Then take the pasted text and run:
+Tell the user:
 
-```bash
-echo '<pasted content>' | "$SCRIPTS/launch-overlay.sh" --manual --no-preview
-```
+"rich-paste не может работать в SSH-сессии — доступ к HTML-формату буфера обмена невозможен без clipboard forwarding. Варианты:
+1. Запустите `/rich-paste` на локальной машине (macOS) и скопируйте результат сюда
+2. Подключайтесь через `kitten ssh` вместо `ssh` — тогда clipboard будет проброшен
+3. Просто вставьте текст как есть (Cmd+V) — ссылки будут потеряны, но текст будет"
 
-Or if the pasted text looks like plain text (no HTML tags), just use it as-is — no conversion needed.
+Do NOT ask the user to "paste HTML" — they cannot paste HTML in a terminal. Do NOT offer manual mode as a workaround for SSH — it requires actual HTML source code which users don't have.
 
 ### Step 3: Read Output
 
