@@ -7,12 +7,14 @@
 rich-paste: read HTML from clipboard, convert to Markdown, preview and confirm.
 
 Modes:
-  default  — read text/html from macOS clipboard via osascript
+  default  — read text/html from system clipboard (macOS or Linux)
   --manual — read raw HTML from stdin (paste + Ctrl-D)
 """
 
 import argparse
 import os
+import platform
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -20,7 +22,7 @@ import tty
 import termios
 
 
-def read_clipboard_html() -> str:
+def _read_clipboard_html_macos() -> str:
     """Read HTML from macOS clipboard using AppleScript + Cocoa bridge."""
     script = '''\
 use framework "AppKit"
@@ -44,10 +46,82 @@ return htmlString as text
         os.unlink(tmp)
 
 
-def read_clipboard_plain() -> str:
-    """Fallback: read plain text from clipboard."""
+def _read_clipboard_html_linux() -> str:
+    """Read HTML from Linux clipboard using xclip or xsel."""
+    # Try xclip first (supports target selection)
+    if shutil.which("xclip"):
+        result = subprocess.run(
+            ["xclip", "-selection", "clipboard", "-t", "text/html", "-o"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+
+    # Try xsel (only supports plain text, but worth trying)
+    if shutil.which("xsel"):
+        result = subprocess.run(
+            ["xsel", "--clipboard", "--output"],
+            capture_output=True, text=True, timeout=10,
+        )
+        html = result.stdout.strip()
+        if result.returncode == 0 and html.startswith("<"):
+            return html
+
+    # Try wl-paste for Wayland
+    if shutil.which("wl-paste"):
+        result = subprocess.run(
+            ["wl-paste", "--type", "text/html"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+
+    return ""
+
+
+def read_clipboard_html() -> str:
+    """Read HTML from system clipboard (macOS or Linux)."""
+    if platform.system() == "Darwin":
+        return _read_clipboard_html_macos()
+    else:
+        return _read_clipboard_html_linux()
+
+
+def _read_clipboard_plain_macos() -> str:
     result = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=5)
     return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def _read_clipboard_plain_linux() -> str:
+    if shutil.which("xclip"):
+        result = subprocess.run(
+            ["xclip", "-selection", "clipboard", "-o"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    if shutil.which("xsel"):
+        result = subprocess.run(
+            ["xsel", "--clipboard", "--output"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    if shutil.which("wl-paste"):
+        result = subprocess.run(
+            ["wl-paste"], capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    return ""
+
+
+def read_clipboard_plain() -> str:
+    """Fallback: read plain text from clipboard."""
+    if platform.system() == "Darwin":
+        return _read_clipboard_plain_macos()
+    else:
+        return _read_clipboard_plain_linux()
 
 
 def read_manual_html() -> str:

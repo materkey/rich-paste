@@ -41,7 +41,7 @@ ln -s ~/.claude/skills/rich-paste-repo/.claude-plugin/skills/rich-paste ~/.claud
 
 ## Requirements
 
-- **macOS** — clipboard HTML reading uses AppleScript + AppKit
+- **macOS** or **Linux** — clipboard reading via AppKit (macOS) or xclip/xsel/wl-paste (Linux)
 - **[uv](https://docs.astral.sh/uv/)** — runs the Python script with auto-installed dependencies
 - **Terminal overlay** — one of: tmux, kitty, or wezterm
 
@@ -93,6 +93,6 @@ Links are preserved as `[text](url)`, bold stays as `**bold**`, lists keep their
 
 ## How it works
 
-When you copy text from a web page, the clipboard contains two formats: `text/plain` and `text/html`. Regular paste gives you plain text only. This skill reads the hidden `text/html` format via macOS `NSPasteboard` API, converts it to Markdown using [markdownify](https://github.com/matthewwithanm/python-markdownify), and feeds the result back to Claude.
+When you copy text from a web page, the clipboard contains two formats: `text/plain` and `text/html`. Regular paste gives you plain text only. This skill reads the hidden `text/html` format — via macOS `NSPasteboard` API or Linux `xclip`/`wl-paste` — converts it to Markdown using [markdownify](https://github.com/matthewwithanm/python-markdownify), and feeds the result back to Claude.
 
 The overlay mechanism (tmux popup / kitty overlay / wezterm split-pane) follows the same pattern as [revdiff](https://github.com/umputun/revdiff).
