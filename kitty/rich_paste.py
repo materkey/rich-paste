@@ -18,20 +18,20 @@ from kittens.tui.handler import result_handler
 
 
 def _find_rich_copy():
-    """Find rich-copy.py script in standard locations."""
     candidates = [
-        # Next to this kitten (if repo cloned)
-        os.path.join(os.path.dirname(__file__), "..", ".claude-plugin",
-                     "skills", "rich-paste", "scripts", "rich-copy.py"),
-        # Installed via symlink in ~/.local/bin
         os.path.expanduser("~/.local/bin/rich-copy"),
-        # Plugin install
         os.path.expanduser("~/.claude/plugins/marketplaces/rich-paste/"
                            ".claude-plugin/skills/rich-paste/scripts/rich-copy.py"),
-        # Manual clone
         os.path.expanduser("~/projects/rich-paste/.claude-plugin/"
                            "skills/rich-paste/scripts/rich-copy.py"),
     ]
+    # Also check relative to this file if __file__ is available
+    try:
+        candidates.insert(0, os.path.join(
+            os.path.dirname(__file__), "..", ".claude-plugin",
+            "skills", "rich-paste", "scripts", "rich-copy.py"))
+    except NameError:
+        pass
     for path in candidates:
         resolved = os.path.realpath(path)
         if os.path.isfile(resolved):
@@ -52,13 +52,16 @@ def handle_result(args, data, target_window_id, boss):
         return
 
     try:
-        subprocess.run(
+        r = subprocess.run(
             [uv, "run", script],
-            capture_output=True, timeout=15, env=env,
+            capture_output=True, text=True, timeout=15, env=env,
         )
+        # rich-copy.py converts HTML→Markdown and also writes to clipboard via pbcopy.
+        # If it failed (no HTML), clipboard is unchanged — paste as-is.
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
 
+    # Paste from clipboard (either converted Markdown or original text)
     try:
         r = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=5)
         text = r.stdout if r.returncode == 0 else ""

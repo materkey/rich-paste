@@ -5,10 +5,6 @@
 # ///
 """
 rich-paste: read HTML from clipboard, convert to Markdown, preview and confirm.
-
-Modes:
-  default  — read text/html from system clipboard (macOS or Linux)
-  --manual — read raw HTML from stdin (paste + Ctrl-D)
 """
 
 import argparse
@@ -17,14 +13,25 @@ import platform
 import shutil
 import subprocess
 import sys
-import tempfile
 import tty
 import termios
 
+# -- ANSI constants --
+CLEAR = "\033[2J\033[H"
+RESET = "\033[0m"
+BOLD = "\033[1m"
+DIM = "\033[2m"
+CYAN_BOLD = "\033[1;36m"
+GREEN_BOLD = "\033[1;32m"
+YELLOW_BOLD = "\033[1;33m"
+RED_BOLD = "\033[1;31m"
+RULE = f"{DIM}-------------------------------------------------------{RESET}"
+ACCEPT_KEYS = ("\r", "\n")
+QUIT_KEYS = ("q", "Q", "ESC", "\x1b", "\x03")
+REFRESH_KEYS = ("r", "R")
 
-def _read_clipboard_html_macos() -> str:
-    """Read HTML from macOS clipboard using AppleScript + Cocoa bridge."""
-    script = '''\
+# -- AppleScript for reading HTML clipboard (static, passed via stdin) --
+_APPLESCRIPT_READ_HTML = '''\
 use framework "AppKit"
 set pb to current application's NSPasteboard's generalPasteboard()
 set htmlData to pb's dataForType:"public.html"
@@ -34,24 +41,20 @@ end if
 set htmlString to (current application's NSString's alloc()'s initWithData:htmlData encoding:(current application's NSUTF8StringEncoding))
 return htmlString as text
 '''
-    with tempfile.NamedTemporaryFile(suffix=".applescript", mode="w", delete=False) as f:
-        f.write(script)
-        tmp = f.name
-    try:
-        result = subprocess.run(
-            ["osascript", tmp], capture_output=True, text=True, timeout=10
-        )
-        return result.stdout.strip() if result.returncode == 0 else ""
-    finally:
-        os.unlink(tmp)
+
+
+def _read_clipboard_html_macos() -> str:
+    result = subprocess.run(
+        ["osascript", "-"], input=_APPLESCRIPT_READ_HTML,
+        capture_output=True, text=True, timeout=10,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ""
 
 
 def _read_clipboard_html_linux() -> str:
-    """Read HTML from Linux clipboard using xclip or xsel."""
     has_display = bool(os.environ.get("DISPLAY"))
     has_wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
 
-    # Try xclip first (supports target selection, needs X11)
     if has_display and shutil.which("xclip"):
         result = subprocess.run(
             ["xclip", "-selection", "clipboard", "-t", "text/html", "-o"],
@@ -60,7 +63,6 @@ def _read_clipboard_html_linux() -> str:
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
 
-    # Try xsel (needs X11)
     if has_display and shutil.which("xsel"):
         result = subprocess.run(
             ["xsel", "--clipboard", "--output"],
@@ -70,7 +72,6 @@ def _read_clipboard_html_linux() -> str:
         if result.returncode == 0 and html.startswith("<"):
             return html
 
-    # Try wl-paste for Wayland (needs WAYLAND_DISPLAY)
     if has_wayland and shutil.which("wl-paste"):
         result = subprocess.run(
             ["wl-paste", "--type", "text/html"],
@@ -83,22 +84,18 @@ def _read_clipboard_html_linux() -> str:
 
 
 def clipboard_available() -> bool:
-    """Check if any clipboard tool is available and can actually work."""
     if platform.system() == "Darwin":
         return shutil.which("osascript") is not None
-    # X11 tools need DISPLAY
-    if os.environ.get("DISPLAY") and shutil.which("xclip"):
+    has_display = bool(os.environ.get("DISPLAY"))
+    has_wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
+    if has_display and (shutil.which("xclip") or shutil.which("xsel")):
         return True
-    if os.environ.get("DISPLAY") and shutil.which("xsel"):
-        return True
-    # Wayland tools need WAYLAND_DISPLAY
-    if os.environ.get("WAYLAND_DISPLAY") and shutil.which("wl-paste"):
+    if has_wayland and shutil.which("wl-paste"):
         return True
     return False
 
 
 def read_clipboard_html() -> str:
-    """Read HTML from system clipboard (macOS or Linux with display)."""
     if not clipboard_available():
         return ""
     if platform.system() == "Darwin":
@@ -139,15 +136,13 @@ def _read_clipboard_plain_linux() -> str:
 
 
 def read_clipboard_plain() -> str:
-    """Fallback: read plain text from clipboard."""
     if platform.system() == "Darwin":
         return _read_clipboard_plain_macos()
     return _read_clipboard_plain_linux()
 
 
 def read_manual_html() -> str:
-    """Read raw HTML from stdin."""
-    print("\033[1mPaste HTML below, then press Ctrl-D:\033[0m\n", file=sys.stderr)
+    print(f"{BOLD}Paste HTML below, then press Ctrl-D:{RESET}\n", file=sys.stderr)
     return sys.stdin.read()
 
 
@@ -162,7 +157,6 @@ def convert_html_to_markdown(html: str) -> str:
         strip=["img", "script", "style"],
     )
 
-    # Clean up excessive whitespace
     lines = md.split("\n")
     cleaned = []
     blank_count = 0
@@ -180,13 +174,11 @@ def convert_html_to_markdown(html: str) -> str:
 
 
 def read_single_key() -> str:
-    """Read a single keypress."""
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     try:
         tty.setraw(fd)
         ch = sys.stdin.read(1)
-        # Handle escape sequences
         if ch == "\x1b":
             ch2 = sys.stdin.read(1) if sys.stdin.readable() else ""
             return "ESC" if not ch2 else ch + ch2
@@ -196,34 +188,37 @@ def read_single_key() -> str:
 
 
 def render_preview(markdown: str):
-    """Render the preview screen."""
-    # Clear screen
-    print("\033[2J\033[H", end="")
-
-    # Header
-    print("\033[1;36m--- rich-paste ----------------------------------------\033[0m")
-    print("\033[1;36m|\033[0m  HTML -> Markdown")
-    print("\033[1;36m-------------------------------------------------------\033[0m")
+    print(CLEAR, end="")
+    print(f"{CYAN_BOLD}--- rich-paste ----------------------------------------{RESET}")
+    print(f"{CYAN_BOLD}|{RESET}  HTML -> Markdown")
+    print(f"{CYAN_BOLD}-------------------------------------------------------{RESET}")
     print()
-
-    # Content
     for line in markdown.split("\n"):
         print(f"  {line}")
+    print()
+    print(RULE)
+    print(f"{GREEN_BOLD} Enter{RESET} accept  {YELLOW_BOLD} r{RESET} re-read clipboard  {RED_BOLD} q/Esc{RESET} cancel")
+    print()
 
-    print()
-    print("\033[2m-------------------------------------------------------\033[0m")
-    print("\033[1;32m Enter\033[0m accept  \033[1;33m r\033[0m re-read clipboard  \033[1;31m q/Esc\033[0m cancel")
-    print()
+
+def render_plain_fallback(plain: str):
+    print(CLEAR, end="")
+    print(f"{YELLOW_BOLD}No HTML found in clipboard.{RESET}")
+    print(f"{DIM}Clipboard contains plain text only:{RESET}\n")
+    print(plain[:500])
+    if len(plain) > 500:
+        print(f"\n{DIM}... ({len(plain)} chars total){RESET}")
+    print(f"\n{RULE}")
+    print(f"{GREEN_BOLD} Enter{RESET} use as-is  {YELLOW_BOLD} r{RESET} re-read clipboard  {RED_BOLD} q/Esc{RESET} cancel")
 
 
 def main():
     parser = argparse.ArgumentParser(description="rich-paste: HTML clipboard to Markdown")
-    parser.add_argument("--output", "-o", required=True, help="Output file path")
-    parser.add_argument("--manual", "-m", action="store_true", help="Manual HTML input via stdin")
-    parser.add_argument("--no-preview", action="store_true", help="Skip interactive preview, auto-accept")
+    parser.add_argument("--output", "-o", required=True)
+    parser.add_argument("--manual", "-m", action="store_true")
+    parser.add_argument("--no-preview", action="store_true")
     args = parser.parse_args()
 
-    # Read HTML
     if args.manual:
         html = read_manual_html()
     elif not clipboard_available():
@@ -233,7 +228,6 @@ def main():
     else:
         html = read_clipboard_html()
 
-    # No-preview mode: convert and write immediately
     if args.no_preview:
         if not html:
             plain = read_clipboard_plain()
@@ -247,87 +241,64 @@ def main():
         return
 
     if not html:
-        # Fallback message
         plain = read_clipboard_plain()
         if plain:
-            print("\033[2J\033[H", end="")
-            print("\033[1;33mNo HTML found in clipboard.\033[0m")
-            print("\033[2mClipboard contains plain text only:\033[0m\n")
-            print(plain[:500])
-            if len(plain) > 500:
-                print(f"\n\033[2m... ({len(plain)} chars total)\033[0m")
-            print(f"\n\033[2m-------------------------------------------------------\033[0m")
-            print("\033[1;32m Enter\033[0m use as-is  \033[1;33m r\033[0m re-read clipboard  \033[1;31m q/Esc\033[0m cancel")
-
+            render_plain_fallback(plain)
             while True:
                 key = read_single_key()
-                if key in ("\r", "\n"):
+                if key in ACCEPT_KEYS:
                     with open(args.output, "w") as f:
                         f.write(plain)
                     return
-                if key in ("r", "R"):
+                if key in REFRESH_KEYS:
                     html = read_clipboard_html()
                     if html:
-                        break  # fall through to the preview loop below
-                    # Still no HTML — re-read plain and refresh
+                        break
                     plain = read_clipboard_plain()
-                    print("\033[2J\033[H", end="")
-                    print("\033[1;33mNo HTML found in clipboard.\033[0m")
-                    print("\033[2mClipboard contains plain text only:\033[0m\n")
-                    print(plain[:500] if plain else "(empty)")
-                    if plain and len(plain) > 500:
-                        print(f"\n\033[2m... ({len(plain)} chars total)\033[0m")
-                    print(f"\n\033[2m-------------------------------------------------------\033[0m")
-                    print("\033[1;32m Enter\033[0m use as-is  \033[1;33m r\033[0m re-read clipboard  \033[1;31m q/Esc\033[0m cancel")
+                    render_plain_fallback(plain if plain else "(empty)")
                     continue
-                if key in ("q", "Q", "ESC", "\x1b", "\x03"):
+                if key in QUIT_KEYS:
                     return
-            # If we broke out, html is now set — fall through
         else:
-            print("\033[2J\033[H", end="")
-            print("\033[1;31mClipboard is empty.\033[0m")
-            print("\033[1;33m r\033[0m re-read clipboard  \033[1;31m q/Esc\033[0m cancel")
+            print(CLEAR, end="")
+            print(f"{RED_BOLD}Clipboard is empty.{RESET}")
+            print(f"{YELLOW_BOLD} r{RESET} re-read clipboard  {RED_BOLD} q/Esc{RESET} cancel")
             while True:
                 key = read_single_key()
-                if key in ("r", "R"):
+                if key in REFRESH_KEYS:
                     html = read_clipboard_html()
                     if html:
                         break
                     plain = read_clipboard_plain()
                     if plain:
-                        print("\033[2J\033[H", end="")
-                        print("\033[1;33mNo HTML found. Plain text:\033[0m\n")
-                        print(plain[:500])
+                        render_plain_fallback(plain)
                         continue
-                    print("\033[2J\033[H", end="")
-                    print("\033[1;31mClipboard is still empty.\033[0m")
-                    print("\033[1;33m r\033[0m re-read clipboard  \033[1;31m q/Esc\033[0m cancel")
+                    print(CLEAR, end="")
+                    print(f"{RED_BOLD}Clipboard is still empty.{RESET}")
+                    print(f"{YELLOW_BOLD} r{RESET} re-read clipboard  {RED_BOLD} q/Esc{RESET} cancel")
                     continue
-                if key in ("q", "Q", "ESC", "\x1b", "\x03"):
+                if key in QUIT_KEYS:
                     return
-            # html is set if we broke out
 
-    # Convert and preview loop
     markdown = convert_html_to_markdown(html)
     render_preview(markdown)
 
     while True:
         key = read_single_key()
-        if key in ("\r", "\n"):
+        if key in ACCEPT_KEYS:
             with open(args.output, "w") as f:
                 f.write(markdown)
             return
-        if key in ("r", "R"):
+        if key in REFRESH_KEYS:
             html = read_clipboard_html()
             if not html:
-                # No HTML — show a flash message and re-render current preview
                 render_preview(markdown)
-                print("\033[1;33m  (no HTML in clipboard, showing previous)\033[0m")
+                print(f"{YELLOW_BOLD}  (no HTML in clipboard, showing previous){RESET}")
                 continue
             markdown = convert_html_to_markdown(html)
             render_preview(markdown)
             continue
-        if key in ("q", "Q", "ESC", "\x1b", "\x03"):
+        if key in QUIT_KEYS:
             return
 
 
