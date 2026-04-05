@@ -51,6 +51,9 @@ POPUP_H="${RICH_PASTE_POPUP_HEIGHT:-70%}"
 # tmux: display-popup -E blocks until command exits
 if [ -n "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; then
     tmux display-popup -E -w "$POPUP_W" -h "$POPUP_H" -T " $OVERLAY_TITLE " -d "$CWD" -- sh -c "$CMD"
+    if [ ! -s "$OUTPUT_FILE" ] && [ -s "$LOG_FILE" ]; then
+        cat "$LOG_FILE" >&2
+    fi
     cat "$OUTPUT_FILE"
     exit 0
 fi
