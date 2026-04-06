@@ -80,6 +80,32 @@ Then reload kitty config (Cmd+Ctrl+,).
 
 The second mapping (`cmd+shift+м`) makes the hotkey work on Russian keyboard layout — kitty resolves key identity from the current layout, so a separate mapping is needed for Cyrillic.
 
+### Kitty clean copy (Cmd+C)
+
+When you select text from Claude Code output in kitty, the clipboard gets hard line breaks at the terminal width. This kitten fixes that — Cmd+C joins wrapped lines into clean paragraphs.
+
+Copy the kitten and add mapping to `kitty.conf`:
+
+```bash
+cp kitty/cleanup_copy.py ~/.config/kitty/cleanup_copy.py
+```
+
+Add to `kitty.conf`:
+
+```
+map cmd+c kitten cleanup_copy.py
+map cmd+с kitten cleanup_copy.py
+```
+
+What it does:
+- Removes `❯` prompt characters
+- Joins lines within paragraphs (blank line = paragraph break)
+- Collapses excess whitespace
+
+`copy_on_select` still works for quick raw copy. Cmd+C gives the cleaned version.
+
+Inspired by Simon Willison's [Cleanup Claude Code Paste](https://tools.simonwillison.net/cleanup-claude-code-paste).
+
 ## Why
 
 When you copy text from ChatGPT, a browser, or Google Docs and paste it into Claude Code, you get plain text — all links are lost. The text says "check the docs" but the URL that was behind it is gone.

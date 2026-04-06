@@ -260,6 +260,69 @@ Falls back to plain text if no HTML format available. Returns empty string if no
 
 ---
 
+### UC-10: Clean Copy from Claude Code (Cmd+C)
+
+**Goal:** Copy text from Claude Code terminal output without line-wrap artifacts and prompt symbols.
+
+**Problem:** When you select text in a terminal running Claude Code, the copied text includes hard line breaks at the terminal width boundary. A paragraph that should be continuous gets split into 80-character lines. The `❯` prompt character also leaks into copied text.
+
+**Trigger:** User selects text in kitty terminal and presses **Cmd+C**.
+
+**Preconditions:**
+- `cleanup_copy.py` kitten installed in `~/.config/kitty/`
+- `map cmd+c kitten cleanup_copy.py` in `kitty.conf`
+
+**Flow:**
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant KT as Kitty Terminal
+    participant KN as cleanup_copy.py kitten
+    participant CB as Clipboard
+
+    U->>KT: Select text in Claude Code output
+    U->>KT: Cmd+C
+    KT->>KN: invoke kitten (no UI)
+    KN->>KT: read selection via text_for_selection()
+    KN->>KN: remove ❯ prompts
+    KN->>KN: join wrapped lines within paragraphs
+    KN->>KN: collapse excess whitespace
+    KN->>CB: write cleaned text
+    U->>U: Cmd+V pastes clean paragraph text
+```
+
+| Step | Action |
+|------|--------|
+| 1 | User selects text in Claude Code terminal output |
+| 2 | Presses **Cmd+C** |
+| 3 | Kitten reads the current selection from the kitty window |
+| 4 | Removes `❯` prompt characters |
+| 5 | Groups lines into paragraphs (blank line = paragraph break) |
+| 6 | Joins lines within each paragraph into a single line |
+| 7 | Collapses multiple whitespace runs |
+| 8 | Writes cleaned text to system clipboard |
+
+**Before (raw terminal copy):**
+
+```
+This is a long paragraph that Claude Code output
+to the terminal, but because the terminal is only
+80 columns wide, the text got wrapped at awkward
+points and now each line is a separate line in the
+clipboard.
+```
+
+**After (cleanup copy):**
+
+```
+This is a long paragraph that Claude Code output to the terminal, but because the terminal is only 80 columns wide, the text got wrapped at awkward points and now each line is a separate line in the clipboard.
+```
+
+**Note:** `copy_on_select yes` still works for quick raw copy. Cmd+C gives the cleaned version. Inspired by Simon Willison's [Cleanup Claude Code Paste](https://tools.simonwillison.net/cleanup-claude-code-paste) web tool.
+
+---
+
 ## Summary Matrix
 
 | Use Case | Entry Point | Requires Overlay | Platform | Interactive |
@@ -273,3 +336,4 @@ Falls back to plain text if no HTML format available. Returns empty string if no
 | UC-7: SSH Workflow | Various | Depends | macOS → remote | Depends |
 | UC-8: Multi-Terminal | Auto | Yes | macOS, Linux | Yes |
 | UC-9: Linux Clipboard | Auto | N/A | Linux | N/A |
+| UC-10: Clean Copy | Cmd+C in kitty | No | macOS | No |
