@@ -1,7 +1,7 @@
 """Kitty kitten: copy selection to clipboard with Claude Code cleanup.
 
 Removes ❯ prompts, joins wrapped lines within paragraphs,
-strips trailing whitespace and ANSI line-wrap artifacts.
+and collapses excess whitespace.
 
 Install: cp cleanup_copy.py ~/.config/kitty/
          Add to kitty.conf:
@@ -11,18 +11,19 @@ Install: cp cleanup_copy.py ~/.config/kitty/
 
 import re
 
+from kittens.tui.handler import result_handler
+
+_PROMPT_RE = re.compile(r'^❯\s*', re.MULTILINE)
+_MULTI_SPACE_RE = re.compile(r'\s{2,}')
+
 
 def cleanup(text: str) -> str:
-    # Remove leading ❯ prompt (with optional space)
-    text = re.sub(r'^❯\s*', '', text, flags=re.MULTILINE)
+    text = _PROMPT_RE.sub('', text)
 
-    lines = text.split('\n')
-
-    # Group lines into paragraphs separated by blank lines
     paragraphs: list[list[str]] = []
     current: list[str] = []
 
-    for line in lines:
+    for line in text.split('\n'):
         if line.strip() == '':
             if current:
                 paragraphs.append(current)
@@ -33,18 +34,14 @@ def cleanup(text: str) -> str:
     if current:
         paragraphs.append(current)
 
-    # Join lines within each paragraph, collapse runs of whitespace
     return '\n\n'.join(
-        re.sub(r'\s{2,}', ' ', ' '.join(p))
+        _MULTI_SPACE_RE.sub(' ', ' '.join(p))
         for p in paragraphs
     )
 
 
 def main(args):
     pass
-
-
-from kittens.tui.handler import result_handler
 
 
 @result_handler(no_ui=True)
@@ -57,7 +54,5 @@ def handle_result(args, data, target_window_id, boss):
     if not text:
         return
 
-    cleaned = cleanup(text)
-
     from kitty.clipboard import set_clipboard_string
-    set_clipboard_string(cleaned)
+    set_clipboard_string(cleanup(text))
